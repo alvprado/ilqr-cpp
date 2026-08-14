@@ -1,0 +1,32 @@
+Language: Cpp
+Standard: c++20
+BasedOnStyle: Google
+
+# Allman brace style
+BreakBeforeBraces: Allman
+
+# Indentation
+IndentWidth: 4
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+TabWidth: 4
+UseTab: Never
+
+# Column limit
+ColumnLimit: 100
+
+# Alignment
+AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: false
+AlignTrailingComments: true
+
+# Includes
+SortIncludes: CaseInsensitive
+IncludeBlocks: Regroup
+
+# Pointers and references — attach to type
+PointerAlignment: Left
+
+# Misc
+SpaceBeforeParens: ControlStatements
+Cpp11BracedListStyle: true

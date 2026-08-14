@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ilqr</name>
+  <version>0.1.0</version>
+  <description>Iterative Linear-Quadratic Regulator (iLQR) trajectory optimization library</description>
+  <maintainer email="alvarezprado96@gmail.com">Andres Alvarez</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+
+  <depend>eigen</depend>
+
+  <test_depend>gtest</test_depend>
+
+  <!-- Plain-CMake package: keeps the core library framework-neutral; colcon still builds it. -->
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>

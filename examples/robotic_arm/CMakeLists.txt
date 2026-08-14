@@ -1,0 +1,6 @@
+if(autodiff_FOUND)
+    add_executable(robotic_arm robotic_arm.cpp)
+    target_link_libraries(robotic_arm PRIVATE ilqr::ilqr autodiff::autodiff example_common)
+else()
+    message(STATUS "autodiff not found — skipping the robotic arm example")
+endif()

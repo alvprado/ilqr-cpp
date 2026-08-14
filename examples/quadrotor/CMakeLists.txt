@@ -1,0 +1,6 @@
+if(autodiff_FOUND)
+    add_executable(quadrotor quadrotor.cpp)
+    target_link_libraries(quadrotor PRIVATE ilqr::ilqr autodiff::autodiff example_common)
+else()
+    message(STATUS "autodiff not found — skipping the quadrotor example")
+endif()

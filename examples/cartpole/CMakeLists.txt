@@ -1,0 +1,6 @@
+if(autodiff_FOUND)
+    add_executable(cartpole cartpole.cpp)
+    target_link_libraries(cartpole PRIVATE ilqr::ilqr autodiff::autodiff example_common)
+else()
+    message(STATUS "autodiff not found — skipping the cartpole example")
+endif()
