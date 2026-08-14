@@ -31,7 +31,7 @@ __pycache__/
 .venv/
 venv/
 
-# Generated example outputs (solver CSVs, rendered GIFs/PNGs). Confined to output/ by the examples.
+# Generated example outputs (solver CSVs, rendered GIFs/PNGs). Confined to output/ by the
+# examples. Curated GIFs live in docs/media/ and are tracked.
 output/
 *.csv
-*.gif
