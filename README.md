@@ -78,10 +78,10 @@ int main() {
     auto dyn = ilqr::discretize<Dims>(CartPole{}, /*dt=*/0.02,
                                       ilqr::math::EulerStep{}, ilqr::AutoDiff{});
 
-    // Compose the cost from reusable terms (Q, R, Qf are weight diagonals).
-    ilqr::QuadraticStateRegulatorCost<Dims> running_cost(Q.asDiagonal());
-    ilqr::ControlPenaltyCost<Dims> control_cost(R.asDiagonal());
-    ilqr::FinalCost<Dims> terminal_cost(Qf.asDiagonal(), goal_state);
+    // Compose the cost from reusable terms (Q, R, Qf are weight matrices).
+    ilqr::QuadraticStateRegulatorCost<Dims> running_cost(Q);
+    ilqr::ControlPenaltyCost<Dims> control_cost(R);
+    ilqr::FinalCost<Dims> terminal_cost(Qf, goal_state);
     ilqr::CompositeCostFunction cost(running_cost, control_cost, terminal_cost);
 
     // Solve from a cold start (zero initial controls).
@@ -151,7 +151,7 @@ docker build -t ilqr .
 and run an example straight from the CLI (`cartpole`, `quadrotor` or `robotic_arm`) via
 
 ```bash
-docker run --rm -it ilqr cartpole
+docker run --rm ilqr cartpole
 ```
 
 or drop into the container with an interactive shell in the built project to explore:
