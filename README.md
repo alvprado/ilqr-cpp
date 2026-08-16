@@ -140,6 +140,32 @@ the autodiff library is available).
 Each example prints a solve summary and writes trajectory/diagnostics CSVs into `output/`, ready
 for the animation scripts shown in [Examples](#-examples).
 
+## 🐳 Docker
+
+If you'd rather not install the entire toolchain (compiler, Eigen, autodiff, Python viz) just to play with and explore the iLQR solver on your machine, build the Docker image with
+
+```bash
+docker build -t ilqr .
+```
+
+and run an example straight from the CLI (`cartpole`, `quadrotor` or `robotic_arm`) via
+
+```bash
+docker run --rm -it ilqr cartpole
+```
+
+or drop into the container with an interactive shell in the built project to explore:
+
+```bash
+docker run --rm -it ilqr
+```
+
+To pull rendered artifacts back onto the host, bind-mount `output/`:
+
+```bash
+docker run --rm -it -v "$(pwd)/output:/workspace/output" ilqr quadrotor
+```
+
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).

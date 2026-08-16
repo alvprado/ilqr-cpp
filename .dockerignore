@@ -1,0 +1,6 @@
+build/
+output/
+.git/
+.venv/
+__pycache__/
+*.gif
