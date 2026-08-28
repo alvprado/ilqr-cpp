@@ -19,6 +19,7 @@
 // NOTE: ilqr/dynamics/autodiff_policy.hpp is deliberately NOT included here — it is opt-in (it will
 // pull in a third-party autodiff library). Include it explicitly to use ilqr::AutoDiff.
 
+#include "ilqr/math/box_active_set.hpp"
 #include "ilqr/math/concepts.hpp"
 #include "ilqr/math/finite_differences.hpp"
 #include "ilqr/math/integrators.hpp"

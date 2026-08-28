@@ -58,6 +58,8 @@ target_sources(ilqr
             include/ilqr/dynamics/finite_difference_policy.hpp
             include/ilqr/dynamics/autodiff_policy.hpp
             include/ilqr/dynamics/discretized_model.hpp
+            include/ilqr/math/box_active_set.hpp
+            include/ilqr/math/box_active_set.inl
             include/ilqr/math/concepts.hpp
             include/ilqr/math/finite_differences.hpp
             include/ilqr/math/integrators.hpp

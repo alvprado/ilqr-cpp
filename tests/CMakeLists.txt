@@ -11,7 +11,8 @@ endif()
 
 include(GoogleTest)
 
-foreach(test_name IN ITEMS solver_test cost_test trajectory_test discretization_test)
+foreach(test_name IN ITEMS solver_test cost_test trajectory_test discretization_test
+                          box_active_set_test)
     add_executable(${test_name} ${test_name}.cpp)
     target_link_libraries(${test_name} PRIVATE ilqr::ilqr GTest::gtest_main)
     gtest_discover_tests(${test_name})
