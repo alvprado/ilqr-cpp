@@ -1,6 +1,6 @@
 # Iterative Linear-Quadratic-Regulator (iLQR) Solver
 
-A header-only, templated **iterative Linear-Quadratic Regulator (iLQR)** solver for nonlinear trajectory optimization in modern C++.
+A header-only, templated **iterative Linear-Quadratic Regulator (iLQR)** solver for input constrained nonlinear trajectory optimization in modern C++.
 
 <p align="center">
   <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-blue.svg">
