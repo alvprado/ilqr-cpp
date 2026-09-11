@@ -41,7 +41,7 @@ States $\mathbf{x} = [x,\ \theta,\ \dot{x},\ \dot{\theta}]^\top$ and control $\m
 ### Planar quadrotor
 
 States $\mathbf{x} = [x,\ y,\ \theta,\ \dot{x},\ \dot{y},\ \dot{\theta}]^\top$ and controls
-$\mathbf{u} = [F_1,\ F_2]^\top$ (rotor thrusts). An underactuated free-flyer, warm-started with gravity-cancelling hover thrust, with thrust constraints:
+$\mathbf{u} = [F_1,\ F_2]^\top$ (rotor thrusts). An underactuated thrust-constrained free-flyer, warm-started with gravity-cancelling hover thrust:
 
 <p align="center"><img width="1200" height="517" alt="Planar quadrotor flight" src="docs/media/quadrotor.gif"></p>
 
