@@ -73,13 +73,9 @@ def build_axes(ax, t, signals, labels, lower=None, upper=None, ylabel="control",
         ax.axhspan(upper, high + margin, color=BOUND_COLOR, alpha=0.07, zorder=0)
     if lower is not None:
         ax.axhspan(low - margin, lower, color=BOUND_COLOR, alpha=0.07, zorder=0)
-    for bound, side in ((lower, "top"), (upper, "bottom")):
-        if bound is None:
-            continue
-        ax.axhline(bound, color=BOUND_COLOR, ls="--", lw=1.2, zorder=1)
-        ax.annotate(f"limit {bound:g}", xy=(t[-1], bound),
-                    xytext=(-4, 3 if side == "bottom" else -3), textcoords="offset points",
-                    ha="right", va=side, color=BOUND_COLOR, fontsize=9)
+    for bound in (lower, upper):
+        if bound is not None:
+            ax.axhline(bound, color=BOUND_COLOR, ls="--", lw=1.2, zorder=1)
 
     traces, markers, tags = [], [], []
     for index, label in enumerate(labels):

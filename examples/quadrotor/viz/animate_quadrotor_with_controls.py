@@ -44,6 +44,11 @@ def main():
     parser.add_argument("--stride", type=int, default=1,
                         help="keep every Nth sample; trims frame count (and GIF size)")
     parser.add_argument("--dpi", type=int, default=70, help="figure dpi; drives the GIF size")
+    parser.add_argument("--width", type=float, default=9.0,
+                        help="figure width in inches; with --dpi this sets the pixel width")
+    parser.add_argument("--plot-height", type=float, default=2.0,
+                        help="height of the time series panel in inches; the animation panel's "
+                             "height follows from its own aspect")
     _common.add_animation_args(parser, default_fps=25)
     args = parser.parse_args()
 
@@ -64,17 +69,20 @@ def main():
         thrusts = [u[keep] for u in thrusts]
         n_frames = t.size
 
+    # Stacked, not side by side: a tall-ish image fits a README column better than a wide one,
+    # and the thrust traces need far less height than the flight.
     fig, (flight_ax, thrust_ax) = plt.subplots(
-        1, 2, figsize=(13, 5.6), dpi=args.dpi, gridspec_kw={"width_ratios": [1.0, 1.15]})
+        2, 1, figsize=(args.width, args.width), dpi=args.dpi,
+        gridspec_kw={"height_ratios": [3.0, 1.0]})
 
     flight_artists, flight_update = animate_quadrotor.build_axes(
         flight_ax, columns, seg, targets, args.l, args.body_radius, args.dt * args.stride,
         title="Flight")
     thrust_artists, thrust_update = animate_controls.build_axes(
         thrust_ax, t, thrusts, [r"$F_1$", r"$F_2$"], args.lower, args.upper,
-        ylabel="rotor thrust [N]", title="Rotor thrusts", show_clock=False)
+        ylabel="rotor thrust [N]", show_clock=False)
 
-    fig.tight_layout()
+    _common.fit_stacked_layout(fig, flight_ax, thrust_ax, args.plot_height)
     artists = flight_artists + thrust_artists
 
     def animate(i):

@@ -86,6 +86,44 @@ def add_animation_args(parser, default_fps=25):
                         help="frames per second when saving")
 
 
+def match_axes_width(reference_ax, target_ax):
+    """Make target_ax span exactly the drawn width of reference_ax.
+
+    An axes with set_aspect("equal") shrinks its own box to honour the aspect, so it ends up
+    narrower than the slot the layout gave it. Call after tight_layout() and a draw.
+    """
+    reference_ax.figure.canvas.draw()
+    reference = reference_ax.get_position(original=False)
+    target = target_ax.get_position(original=False)
+    target_ax.set_position([reference.x0, target.y0, reference.width, target.height])
+
+
+def fit_stacked_layout(fig, aspect_ax, plot_ax, plot_height_in):
+    """Grow the figure so an aspect-equal panel fills its width with no wasted space.
+
+    `aspect_ax` keeps equal x/y scaling, so its drawn box is pinned to the data's own aspect. Give
+    the time series a height in inches and the panel's height follows, rather than guessing a ratio
+    that has to be retuned whenever the trajectory bounds move.
+    """
+    # First pass: measure the margins the labels and titles actually take, in inches.
+    fig.tight_layout()
+    fig.canvas.draw()
+    figure_width, figure_height = fig.get_size_inches()
+    panel_slot = aspect_ax.get_position(original=True)
+    plot_slot = plot_ax.get_position(original=True)
+    side_margins = figure_width * (1.0 - panel_slot.width)
+    vertical_overhead = figure_height * (1.0 - panel_slot.height - plot_slot.height)
+
+    (x_low, x_high), (y_low, y_high) = aspect_ax.get_xlim(), aspect_ax.get_ylim()
+    data_aspect = (x_high - x_low) / (y_high - y_low)
+    panel_height_in = (figure_width - side_margins) / data_aspect
+
+    fig.axes[0].get_gridspec().set_height_ratios([panel_height_in, plot_height_in])
+    fig.set_size_inches(figure_width, panel_height_in + plot_height_in + vertical_overhead)
+    fig.tight_layout()
+    match_axes_width(aspect_ax, plot_ax)
+
+
 def finalize(obj, args):
     """Save (into OUTPUT_DIR) or interactively show a Figure or FuncAnimation."""
     if not args.save:

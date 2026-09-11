@@ -40,6 +40,11 @@ def main():
     parser.add_argument("--stride", type=int, default=1,
                         help="keep every Nth sample; trims frame count (and GIF size)")
     parser.add_argument("--dpi", type=int, default=70, help="figure dpi; drives the GIF size")
+    parser.add_argument("--width", type=float, default=9.0,
+                        help="figure width in inches; with --dpi this sets the pixel width")
+    parser.add_argument("--plot-height", type=float, default=2.0,
+                        help="height of the time series panel in inches; the animation panel's "
+                             "height follows from its own aspect")
     _common.add_animation_args(parser, default_fps=50)
     args = parser.parse_args()
 
@@ -51,16 +56,19 @@ def main():
         keep = slice(None, None, args.stride)
         t, cart_x, theta, force = t[keep], cart_x[keep], theta[keep], force[keep]
 
+    # Stacked, not side by side: a tall-ish image fits a README column better than a wide one,
+    # and the force trace needs far less height than the swing-up.
     fig, (swing_ax, force_ax) = plt.subplots(
-        1, 2, figsize=(13, 5.0), dpi=args.dpi, gridspec_kw={"width_ratios": [1.0, 1.1]})
+        2, 1, figsize=(args.width, args.width), dpi=args.dpi,
+        gridspec_kw={"height_ratios": [3.0, 1.0]})
 
     swing_artists, swing_update = animate_cartpole.build_axes(
         swing_ax, t, cart_x, theta, args.length, title="Swing-up")
     force_artists, force_update = animate_controls.build_axes(
         force_ax, t, [force], [r"$F$"], args.lower, args.upper, ylabel="cart force [N]",
-        title="Cart force", show_clock=False)
+        show_clock=False)
 
-    fig.tight_layout()
+    _common.fit_stacked_layout(fig, swing_ax, force_ax, args.plot_height)
     artists = swing_artists + force_artists
 
     def animate(i):
