@@ -42,16 +42,29 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::solve_impl(const SolveRequest& solv
     // Clear the diagnostics
     if (solve_diagnostics) solve_diagnostics->iterations.clear();
 
+    const auto& control_bounds = solve_request.control_bounds();
+
     // Check for an invalid solve request
-    if (solve_request.horizon() <= 0)
+    const bool empty_box = control_bounds.has_value() &&
+                           (control_bounds->lower.array() > control_bounds->upper.array()).any();
+    if ((solve_request.horizon() <= 0) || empty_box)
     {
         return Result{
             .trajectory = {}, .feedback_gains = {}, .status = SolverStatus::InvalidProblem};
     }
 
+    // Start feasible - an out-of-box guess is projected into the bounds.
+    auto initial_controls = solve_request.initial_controls();
+    if (control_bounds.has_value())
+    {
+        for (auto& control : initial_controls)
+        {
+            control = control.cwiseMax(control_bounds->lower).cwiseMin(control_bounds->upper);
+        }
+    }
+
     // Create initial nominal trajectory
-    auto nominal_trajectory =
-        rollout_trajectory(solve_request.initial_state(), solve_request.initial_controls());
+    auto nominal_trajectory = rollout_trajectory(solve_request.initial_state(), initial_controls);
     // Evaluate initial cost
     auto nominal_trajectory_cost = evaluate_trajectory_cost(nominal_trajectory);
     // Instantiate backward pass result
@@ -68,13 +81,15 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::solve_impl(const SolveRequest& solv
 
         // Backward pass with regularization
         auto maybe_backward_pass_result =
-            backward_pass_with_regularization(nominal_trajectory, reg);
+            backward_pass_with_regularization(nominal_trajectory, reg, control_bounds);
         record.reg = reg;
 
         if (!maybe_backward_pass_result.has_value())
         {
-            return Result{
-                .trajectory = {}, .feedback_gains = {}, .status = SolverStatus::MaxRegularization};
+            return Result{.trajectory = {},
+                          .feedback_gains = {},
+                          .status = control_bounds.has_value() ? SolverStatus::BoxQPFailed
+                                                               : SolverStatus::MaxRegularization};
         }
         backward_pass_result = *std::move(maybe_backward_pass_result);
 
@@ -92,7 +107,7 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::solve_impl(const SolveRequest& solv
 
         // Forward pass with line search
         auto maybe_forward_pass_result = forward_pass_with_line_search(
-            nominal_trajectory, nominal_trajectory_cost, backward_pass_result);
+            nominal_trajectory, nominal_trajectory_cost, backward_pass_result, control_bounds);
 
         // If the forward pass did not deliver a suitable trajectory, increase regularization and
         // continue with next iteration
@@ -176,9 +191,9 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::evaluate_trajectory_cost(
 }
 
 template <Dynamics Dynamics_T, CostFunction CostFunction_T>
-auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass(const Trajectory& trajectory,
-                                                           Scalar regularization) const
-    -> std::optional<BackwardPassResult>
+auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass(
+    const Trajectory& trajectory, Scalar regularization,
+    const OptionalControlBounds& control_bounds) const -> std::optional<BackwardPassResult>
 {
     const int N = trajectory.horizon();
     assert(N > 0 && "Trajectory should not be empty to compute the backward pass");
@@ -186,6 +201,8 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass(const Trajectory& tra
     auto const final_cost_expansion = cost_function_.quadratize_final(trajectory.state(N));
     auto V_x = final_cost_expansion.lf_x;
     auto V_xx = final_cost_expansion.lf_xx;
+
+    math::BoxQPActiveSetMethod<Dims::control_dim, Scalar> box_qp(config_.box_qp);
 
     auto k_ff = AlignedVec<ControlVec>(N);
     auto K = AlignedVec<ControlStateMat>(N);
@@ -229,16 +246,46 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass(const Trajectory& tra
         const ControlStateMat Q_ux_reg = l_ux + B_T_Vxx_reg * A;
         const ControlMat Q_uu_reg = l_uu + B_T_Vxx_reg * B;
 
-        // Q_uu Cholesky decomposition on regularized Q-terms
-        Eigen::LLT<ControlMat> llt(Q_uu_reg);
-        if (llt.info() != Eigen::Success)
-        {
-            return std::nullopt;
-        }
-
         // Compute control policy
-        k_ff[k] = -llt.solve(Q_u);
-        K[k] = -llt.solve(Q_ux_reg);
+        if (control_bounds.has_value())
+        {
+            // Solve box QP problem for control inputs
+            // Warm start from the timestep just solved - adjacent steps have similar active sets.
+            // The first one, at the end of the horizon, has no predecessor and starts cold.
+            const auto box_qp_result = (k == N - 1)
+                                           ? box_qp.solve(Q_uu_reg, Q_u, control_bounds->lower - u,
+                                                          control_bounds->upper - u)
+                                           : box_qp.solve(Q_uu_reg, Q_u, control_bounds->lower - u,
+                                                          control_bounds->upper - u, k_ff[k + 1]);
+            if (!box_qp_result.has_value())
+            {
+                return std::nullopt;
+            }
+
+            // Optimal constraint feedforward on controls
+            k_ff[k] = box_qp_result->optimal_vector;
+
+            // Constraint feedback term - zero where the controls are saturated
+            const auto& free_indices = box_qp_result->free_indices;
+            K[k].setZero();
+            if (free_indices.size() > 0)
+            {
+                K[k](free_indices, Eigen::all) = -box_qp_result->factorized_free_hessian.solve(
+                    Q_ux_reg(free_indices, Eigen::all));
+            }
+        }
+        else
+        {
+            // Q_uu Cholesky decomposition on regularized Q-terms
+            Eigen::LLT<ControlMat> llt(Q_uu_reg);
+            if (llt.info() != Eigen::Success)
+            {
+                return std::nullopt;
+            }
+
+            k_ff[k] = -llt.solve(Q_u);
+            K[k] = -llt.solve(Q_ux_reg);
+        }
 
         // Accumulate expected cost reduction terms
         dV_lin += k_ff[k].dot(Q_u);
@@ -259,11 +306,12 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass(const Trajectory& tra
 
 template <Dynamics Dynamics_T, CostFunction CostFunction_T>
 auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass_with_regularization(
-    const Trajectory& trajectory, Scalar& regularization) const -> std::optional<BackwardPassResult>
+    const Trajectory& trajectory, Scalar& regularization,
+    const OptionalControlBounds& control_bounds) const -> std::optional<BackwardPassResult>
 {
     for (int i = 0; i < config_.regularization.max_iterations; ++i)
     {
-        auto maybe_backward_pass_result = backward_pass(trajectory, regularization);
+        auto maybe_backward_pass_result = backward_pass(trajectory, regularization, control_bounds);
         // Successful backward pass iteration
         if (maybe_backward_pass_result.has_value())
         {
@@ -287,7 +335,7 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass_with_regularization(
 template <Dynamics Dynamics_T, CostFunction CostFunction_T>
 auto ILQRSolver<Dynamics_T, CostFunction_T>::forward_pass(
     const Trajectory& nominal_trajectory, const BackwardPassResult& backward_pass_result,
-    Scalar step_size) const -> Trajectory
+    Scalar step_size, const OptionalControlBounds& control_bounds) const -> Trajectory
 {
     int const N = nominal_trajectory.horizon();
     Trajectory updated_trajectory(N);
@@ -295,9 +343,17 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::forward_pass(
 
     for (int k = 0; k < N; ++k)
     {
-        updated_trajectory.control(k) =
+        ControlVec updated_control =
             nominal_trajectory.control(k) + step_size * backward_pass_result.k_ff[k] +
             backward_pass_result.K[k] * (updated_trajectory.state(k) - nominal_trajectory.state(k));
+
+        // The feedback term can leave the box even when the feedforward term is feasible.
+        if (control_bounds.has_value())
+        {
+            updated_control =
+                updated_control.cwiseMax(control_bounds->lower).cwiseMin(control_bounds->upper);
+        }
+        updated_trajectory.control(k) = std::move(updated_control);
 
         updated_trajectory.state(k + 1) =
             dynamics_.step(updated_trajectory.state(k), updated_trajectory.control(k));
@@ -309,14 +365,15 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::forward_pass(
 template <Dynamics Dynamics_T, CostFunction CostFunction_T>
 auto ILQRSolver<Dynamics_T, CostFunction_T>::forward_pass_with_line_search(
     const Trajectory& nominal_trajectory, Scalar nominal_trajectory_cost,
-    const BackwardPassResult& backward_pass_result) const -> std::optional<ForwardPassResult>
+    const BackwardPassResult& backward_pass_result,
+    const OptionalControlBounds& control_bounds) const -> std::optional<ForwardPassResult>
 {
     Scalar line_search_step_size = Scalar(1.0);
     for (int i = 0; i < config_.line_search.steps; ++i)
     {
         // Rollout trajectory
-        auto candidate_trajectory =
-            forward_pass(nominal_trajectory, backward_pass_result, line_search_step_size);
+        auto candidate_trajectory = forward_pass(nominal_trajectory, backward_pass_result,
+                                                 line_search_step_size, control_bounds);
 
         // Evaluate candidate trajectory for acceptance criteria
         Scalar candidate_trajectory_cost = evaluate_trajectory_cost(candidate_trajectory);

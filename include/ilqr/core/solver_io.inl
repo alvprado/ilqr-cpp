@@ -53,4 +53,20 @@ auto SolveRequest<Dims_T>::initial_controls() const -> const AlignedVec<ControlV
     return controls_;
 }
 
+template <typename Dims_T>
+SolveRequest<Dims_T> SolveRequest<Dims_T>::with_control_bounds(ControlVec lower,
+                                                               ControlVec upper) const
+{
+    SolveRequest bounded = *this;
+    bounded.control_bounds_ =
+        ControlBounds<Dims_T>{.lower = std::move(lower), .upper = std::move(upper)};
+    return bounded;
+}
+
+template <typename Dims_T>
+auto SolveRequest<Dims_T>::control_bounds() const -> const std::optional<ControlBounds<Dims_T>>&
+{
+    return control_bounds_;
+}
+
 }  // namespace ilqr

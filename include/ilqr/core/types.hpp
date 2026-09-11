@@ -39,6 +39,18 @@ struct Dims
     using ControlStateMat = Eigen::Matrix<Scalar, control_dim_v, state_dim_v>;  // l_ux, gain K
 };
 
+/// @brief Componentwise lower and upper limits on the control input, constant over the horizon
+/// @tparam Dims_T The problem dimensions
+template <typename Dims_T>
+struct ControlBounds
+{
+    /// Componentwise lower limit
+    typename Dims_T::ControlVec lower;
+
+    /// Componentwise upper limit
+    typename Dims_T::ControlVec upper;
+};
+
 /// @brief Vector with an Eigen aligned allocator for correct storage alignment
 template <class T>
 using AlignedVec = std::vector<T, Eigen::aligned_allocator<T>>;

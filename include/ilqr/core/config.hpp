@@ -4,6 +4,8 @@
 #include <concepts>
 #include <limits>
 
+#include "ilqr/math/box_active_set.hpp"
+
 namespace ilqr
 {
 
@@ -63,6 +65,9 @@ struct SolverConfig
         /// Minimum fraction of predicted reduction to accept a forward step
         Scalar min_accept_ratio{Scalar(1e-4)};
     } line_search;
+
+    /// @brief Box QP config, used only when the solve request carries control limits
+    math::BoxQPConfig<Scalar> box_qp;
 
     /// Verbose flag for solver diagnostics
     bool verbose{false};

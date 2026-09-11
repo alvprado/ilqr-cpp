@@ -192,4 +192,164 @@ TEST(SolverDiagnostics, RecordsPerIteration)
     EXPECT_EQ(reused_result.status, ilqr::SolverStatus::Converged);
     EXPECT_EQ(diagnostics.iterations.size(), records_after_first_solve);
 }
+// --- Control-limited solves -------------------------------------------------------------------
+// Shared problem: the same double-integrator-like system, whose unconstrained optimum peaks at
+// |u| ~ 2.59 and so saturates any tighter limit.
+
+constexpr int kLimitedHorizon = 30;
+constexpr double kControlLimit = 1.0;
+
+auto make_limited_cost()
+{
+    ilqr::AlignedVec<StateVec> x_ref(static_cast<std::size_t>(kLimitedHorizon), StateVec::Zero());
+    return ilqr::CompositeCostFunction{
+        ilqr::QuadraticTrackingCost<Dims>(0.1 * StateMat::Identity(), x_ref),
+        ilqr::ControlPenaltyCost<Dims>((ControlMat() << 0.01).finished()),
+        ilqr::FinalCost<Dims>(StateMat::Identity(), StateVec::Zero())};
+}
+
+auto make_limited_solver()
+{
+    StateMat A;
+    A << 1.0, 0.1, 0.0, 1.0;
+    StateControlMat B;
+    B << 0.0, 0.1;
+
+    ilqr::SolverConfig<double> opts;
+    opts.regularization.init = 0.0;
+    opts.regularization.min = 0.0;
+
+    return ilqr::ILQRSolver{LinearDynamics{A, B}, make_limited_cost(), opts};
+}
+
+StateVec limited_initial_state()
+{
+    StateVec x0;
+    x0 << 1.0, 0.0;
+    return x0;
+}
+
+double peak_control(const ilqr::Trajectory<Dims>& trajectory)
+{
+    double peak = 0.0;
+    for (int k = 0; k < trajectory.horizon(); ++k)
+        peak = std::max(peak, std::abs(trajectory.control(k)(0)));
+    return peak;
+}
+
+TEST(SolverControlLimits, RespectsTheLimitsAtEveryTimestep)
+{
+    const auto solver = make_limited_solver();
+    const auto x0 = limited_initial_state();
+
+    // Guards the test: with a limit this tight the unconstrained optimum is infeasible, so the
+    // constrained solve is doing real work.
+    const auto unconstrained =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(x0, kLimitedHorizon));
+    ASSERT_EQ(unconstrained.status, ilqr::SolverStatus::Converged);
+    ASSERT_GT(peak_control(unconstrained.trajectory), kControlLimit);
+
+    const auto result =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(x0, kLimitedHorizon)
+                         .with_control_bounds(ControlVec::Constant(-kControlLimit),
+                                              ControlVec::Constant(kControlLimit)));
+
+    EXPECT_EQ(result.status, ilqr::SolverStatus::Converged);
+    for (int k = 0; k < kLimitedHorizon; ++k)
+    {
+        EXPECT_LE(result.trajectory.control(k)(0), kControlLimit + 1e-12) << "k = " << k;
+        EXPECT_GE(result.trajectory.control(k)(0), -kControlLimit - 1e-12) << "k = " << k;
+    }
+}
+
+TEST(SolverControlLimits, LimitsWideEnoughToNeverBindReproduceTheUnconstrainedSolve)
+{
+    const auto solver = make_limited_solver();
+    const auto x0 = limited_initial_state();
+
+    const auto unconstrained =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(x0, kLimitedHorizon));
+    const auto wide = solver.solve(ilqr::SolveRequest<Dims>::cold_start(x0, kLimitedHorizon)
+                                       .with_control_bounds(ControlVec::Constant(-10.0),
+                                                            ControlVec::Constant(10.0)));
+
+    ASSERT_EQ(wide.status, ilqr::SolverStatus::Converged);
+
+    // The box QP path and the Cholesky path must agree when no bound is active.
+    for (int k = 0; k < kLimitedHorizon; ++k)
+    {
+        EXPECT_NEAR(wide.trajectory.control(k)(0), unconstrained.trajectory.control(k)(0), 1e-10)
+            << "k = " << k;
+        EXPECT_TRUE(wide.feedback_gains[k].isApprox(unconstrained.feedback_gains[k], 1e-10))
+            << "k = " << k;
+    }
+}
+
+TEST(SolverControlLimits, ConstrainingTheControlsCannotLowerTheCost)
+{
+    const auto solver = make_limited_solver();
+    const auto cost = make_limited_cost();
+    const auto x0 = limited_initial_state();
+
+    const auto unconstrained =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(x0, kLimitedHorizon));
+    const auto constrained =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(x0, kLimitedHorizon)
+                         .with_control_bounds(ControlVec::Constant(-kControlLimit),
+                                              ControlVec::Constant(kControlLimit)));
+
+    ASSERT_EQ(constrained.status, ilqr::SolverStatus::Converged);
+    EXPECT_GE(trajectory_cost(cost, constrained.trajectory),
+              trajectory_cost(cost, unconstrained.trajectory) - 1e-9);
+}
+
+TEST(SolverControlLimits, SaturatedControlsCarryNoFeedbackGain)
+{
+    const auto solver = make_limited_solver();
+    const auto result =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(limited_initial_state(), kLimitedHorizon)
+                         .with_control_bounds(ControlVec::Constant(-kControlLimit),
+                                              ControlVec::Constant(kControlLimit)));
+    ASSERT_EQ(result.status, ilqr::SolverStatus::Converged);
+
+    int saturated_steps = 0;
+    for (int k = 0; k < kLimitedHorizon; ++k)
+    {
+        const double control = result.trajectory.control(k)(0);
+        if (std::abs(std::abs(control) - kControlLimit) > 1e-12) continue;
+
+        ++saturated_steps;
+        // A control with no authority left must not react to state error.
+        EXPECT_TRUE(result.feedback_gains[k].isZero(0.0)) << "k = " << k;
+    }
+    EXPECT_GT(saturated_steps, 0) << "the limit never binds, so this test proves nothing";
+}
+
+TEST(SolverControlLimits, AnInfeasibleWarmStartStillConvergesWithinTheLimits)
+{
+    const auto solver = make_limited_solver();
+
+    // Every control starts far outside the box.
+    ilqr::AlignedVec<ControlVec> infeasible_guess(static_cast<std::size_t>(kLimitedHorizon),
+                                                  ControlVec::Constant(50.0));
+    const auto result =
+        solver.solve(ilqr::SolveRequest<Dims>::warm_start(limited_initial_state(),
+                                                          std::move(infeasible_guess))
+                         .with_control_bounds(ControlVec::Constant(-kControlLimit),
+                                              ControlVec::Constant(kControlLimit)));
+
+    EXPECT_EQ(result.status, ilqr::SolverStatus::Converged);
+    EXPECT_LE(peak_control(result.trajectory), kControlLimit + 1e-12);
+}
+
+TEST(SolverControlLimits, BoundsWithLowerAboveUpperAreRejected)
+{
+    const auto solver = make_limited_solver();
+    const auto result =
+        solver.solve(ilqr::SolveRequest<Dims>::cold_start(limited_initial_state(), kLimitedHorizon)
+                         .with_control_bounds(ControlVec::Constant(1.0),
+                                              ControlVec::Constant(-1.0)));
+
+    EXPECT_EQ(result.status, ilqr::SolverStatus::InvalidProblem);
+}
 }  // namespace

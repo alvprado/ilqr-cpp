@@ -36,6 +36,9 @@ const std::vector<Eigen::Vector<Scalar, 2>> waypoints = {{Scalar(5.0), Scalar(3.
                                                          {Scalar(0.0), Scalar(10.0)},
                                                          {Scalar(-5.0), Scalar(3.0)},
                                                          {Scalar(0.0), Scalar(0.0)}};
+
+const ControlVec min_thrusts{0.0, 0.0};
+const ControlVec max_thrusts{50.0, 50.0};
 }  // namespace quadrotor::config
 
 int main()
@@ -84,7 +87,8 @@ int main()
         // Create a solve request with warm start (initial control guess is hover thrust for gravity
         // compensation)
         const auto request = ilqr::SolveRequest<Dims>::warm_start(
-            x_start, ilqr::AlignedVec<ControlVec>(cfg::horizon, hover_thrust));
+                                 x_start, ilqr::AlignedVec<ControlVec>(cfg::horizon, hover_thrust))
+                                 .with_control_bounds(cfg::min_thrusts, cfg::max_thrusts);
         ilqr::SolveDiagnostics<double> diagnostics;
 
         // Solve with diagnostics

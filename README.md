@@ -16,6 +16,7 @@ A header-only, templated **iterative Linear-Quadratic Regulator (iLQR)** solver 
 - **Just write your continuous dynamics model $\dot{\mathbf{x}} = f(\mathbf{x}, \mathbf{u})$. No hand-derived Jacobians required.** `ilqr::discretize<Dims>(model, dt, integrator_policy, linearization_policy)`
   turns any continuous-time callable into discrete dynamics, with pluggable policies for integration (Euler, Heun or RK4) and linearization (central finite differences or exact forward-mode automatic differentiation).
 - **Robust numerics.** Adaptive Levenberg–Marquardt regularization keeps the backward pass stable even on indefinite cost Hessians. The forward pass uses an Armijo backtracking line search against the predicted cost reduction.
+- **Box control input constraints.** Box control input constraints $\mathbf{u}_{\text{min}} \leq \mathbf{u} \leq \mathbf{u}_{\text{max}}$ are supported by solving a box Quadratic Program (QP) at the backward pass via an efficient box active set method. Control input constraints are additionally enforced on the rollout/forward pass.
 - **Cold & warm starts and feedback for free.** `SolveRequest::cold_start` / `::warm_start` let you start from zero controls or seed the solver with an initial control guess.
 - **Optimal feedback for free.** The result carries the time-varying optimal feedback gains `K[k]` alongside the optimal trajectory for closed-loop tracking.
 - **Composable costs.** Ready-made quadratic terms (state regulator, setpoint and reference tracking, control penalties, terminal costs) that sum via `CompositeCostFunction`. Or implement your own custom cost terms!
@@ -84,9 +85,9 @@ int main() {
     ilqr::FinalCost<Dims> terminal_cost(Qf, goal_state);
     ilqr::CompositeCostFunction cost(running_cost, control_cost, terminal_cost);
 
-    // Solve from a cold start (zero initial controls).
+    // Solve from a cold start (zero initial controls) with control bounds (u_min and u_max are the control limits)
     ilqr::ILQRSolver solver{dyn, cost, ilqr::SolverConfig<double>{}};
-    const auto request = ilqr::SolveRequest<Dims>::cold_start(initial_state, /*horizon=*/150);
+    const auto request = ilqr::SolveRequest<Dims>::cold_start(initial_state, /*horizon=*/150).with_control_bounds(u_min, u_max);
     const auto result = solver.solve(request);
 
     // result.trajectory     — optimal states and controls

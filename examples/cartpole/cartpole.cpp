@@ -11,7 +11,7 @@
 namespace cartpole::config
 {
 // Define a 3 seconds trajectory with 0.02 seconds time step
-constexpr int horizon = 150;
+constexpr int horizon = 200;
 constexpr double dt = 0.02;
 
 // Max. number of solver iterations
@@ -26,6 +26,10 @@ const StateVec goal_state = StateVec::Zero();
 const StateVec running_state_weights{0.1, 0.1, 0.001, 0.001};
 const ControlVec control_weights{0.1};
 const StateVec final_state_weights{100.0, 100.0, 10.0, 10.0};
+
+// Control bounds
+const ControlVec min_force{-3.0};
+const ControlVec max_force{3.0};
 }  // namespace cartpole::config
 
 int main()
@@ -51,7 +55,8 @@ int main()
     ilqr::ILQRSolver solver{dyn, cost, config};
 
     // Create a solve request with cold start (initial control guess is zero for the entire horizon)
-    const auto request = ilqr::SolveRequest<Dims>::cold_start(cfg::initial_state, cfg::horizon);
+    const auto request = ilqr::SolveRequest<Dims>::cold_start(cfg::initial_state, cfg::horizon)
+                             .with_control_bounds(cfg::min_force, cfg::max_force);
     ilqr::SolveDiagnostics<double> diagnostics;
 
     // Solve

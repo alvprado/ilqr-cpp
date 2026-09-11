@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "ilqr/core/trajectory.hpp"
@@ -37,6 +38,15 @@ public:
     /// @brief The initial control guess, always of length N.
     [[nodiscard]] const AlignedVec<ControlVec>& initial_controls() const;
 
+    /// @brief Attach componentwise control limits, held for the whole horizon.
+    /// @param lower The componentwise lower limit.
+    /// @param upper The componentwise upper limit; must dominate lower componentwise.
+    /// @returns A copy of this request carrying the limits.
+    [[nodiscard]] SolveRequest with_control_bounds(ControlVec lower, ControlVec upper) const;
+
+    /// @brief The control limits, or std::nullopt for an unconstrained problem.
+    [[nodiscard]] const std::optional<ControlBounds<Dims_T>>& control_bounds() const;
+
 private:
     /// @brief Private Ctor
     /// @param initial_state The initial state x0
@@ -48,6 +58,9 @@ private:
 
     /// Initial controls - either zero for cold or guessed for warm starts
     AlignedVec<ControlVec> controls_;
+
+    /// Control limits, empty for an unconstrained problem
+    std::optional<ControlBounds<Dims_T>> control_bounds_;
 };
 
 /// @brief The iLQR solver status
@@ -57,6 +70,7 @@ enum class SolverStatus : std::uint8_t
     MaxIterations = 1U,
     MaxRegularization = 2U,
     InvalidProblem = 3U,
+    BoxQPFailed = 4U,
 };
 
 /// @brief SolverStatus to string
@@ -74,6 +88,8 @@ enum class SolverStatus : std::uint8_t
             return "MaxRegularization";
         case SolverStatus::InvalidProblem:
             return "InvalidProblem";
+        case SolverStatus::BoxQPFailed:
+            return "BoxQPFailed";
     }
     return "Unknown";
 }

@@ -41,6 +41,8 @@ class ILQRSolver
     using StateMat = typename Dims::StateMat;
     using ControlMat = typename Dims::ControlMat;
     using ControlStateMat = typename Dims::ControlStateMat;
+    using ControlBounds = ControlBounds<Dims>;
+    using OptionalControlBounds = std::optional<ControlBounds>;
     using Trajectory = Trajectory<Dims>;
     using Result = Result<Dims>;
     using SolveRequest = SolveRequest<Dims>;
@@ -123,10 +125,12 @@ private:
     /// @param[in] trajectory The nominal trajectory to linearize and quadratize about.
     /// @param[in] regularization The value added to the state value Hessian V_xx when forming the
     ///        control-update terms.
+    /// @param[in] control_bounds The control limits, or std::nullopt when unconstrained.
     /// @returns The gains and predicted cost reduction, or std::nullopt if the regularized control
     ///          Hessian Q_uu is not positive-definite (Cholesky failure).
-    [[nodiscard]] std::optional<BackwardPassResult> backward_pass(const Trajectory& trajectory,
-                                                                  Scalar regularization) const;
+    [[nodiscard]] std::optional<BackwardPassResult> backward_pass(
+        const Trajectory& trajectory, Scalar regularization,
+        const OptionalControlBounds& control_bounds) const;
 
     /// @brief Run the backward pass, increasing regularization until it succeeds or a ceiling is
     ///        reached.
@@ -134,20 +138,26 @@ private:
     /// @param[in,out] regularization On entry the starting regularization; on Cholesky failure it
     ///        is grown by the configured factor and retried, and on return it holds the value
     ///        actually used.
+    /// @param[in] control_bounds The control limits, or std::nullopt when unconstrained.
     /// @returns The backward pass result, or std::nullopt if the regularization ceiling (or the
     ///          retry limit) is reached without a positive-definite Q_uu.
     [[nodiscard]] std::optional<BackwardPassResult> backward_pass_with_regularization(
-        const Trajectory& trajectory, Scalar& regularization) const;
+        const Trajectory& trajectory, Scalar& regularization,
+        const OptionalControlBounds& control_bounds) const;
 
     /// @brief Roll out a single candidate trajectory for a given line search step size.
     /// @param[in] nominal_trajectory The current nominal trajectory to update from.
     /// @param[in] backward_pass_result The gains (k_ff, K) computed by the backward pass.
     /// @param[in] step_size The line search step size alpha scaling the feedforward term:
     ///        u_new[k] = u[k] + alpha k_ff[k] + K[k] (x_new[k] - x[k]).
+    /// @param[in] control_bounds The control limits, or std::nullopt when unconstrained. When
+    ///        present the updated control is clamped into them, since the feedback term can leave
+    ///        the box even for a feasible feedforward term.
     /// @returns The candidate trajectory obtained by rolling out the updated controls.
     [[nodiscard]] Trajectory forward_pass(const Trajectory& nominal_trajectory,
                                           const BackwardPassResult& backward_pass_result,
-                                          Scalar step_size) const;
+                                          Scalar step_size,
+                                          const OptionalControlBounds& control_bounds) const;
 
     /// @brief Backtracking line search: try decreasing step sizes until one meets the Armijo
     ///        sufficient-decrease criterion.
@@ -155,11 +165,13 @@ private:
     /// @param[in] nominal_trajectory_cost The cost of the nominal trajectory, used as the baseline
     ///        in the acceptance test.
     /// @param[in] backward_pass_result The gains and expected cost reduction from the backward pass.
+    /// @param[in] control_bounds The control limits, or std::nullopt when unconstrained.
     /// @returns The accepted candidate (trajectory, cost and step size), or std::nullopt if no
     ///          step size in the configured schedule was accepted.
     [[nodiscard]] std::optional<ForwardPassResult> forward_pass_with_line_search(
         const Trajectory& nominal_trajectory, Scalar nominal_trajectory_cost,
-        const BackwardPassResult& backward_pass_result) const;
+        const BackwardPassResult& backward_pass_result,
+        const OptionalControlBounds& control_bounds) const;
 
     /// @brief Compute the normalized feedforward-gradient norm used as a convergence measure.
     /// @param[in] controls The nominal control sequence u_0..u_{N-1}.
