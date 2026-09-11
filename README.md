@@ -36,14 +36,14 @@ python examples/<name>/viz/animate_<name>.py
 
 States $\mathbf{x} = [x,\ \theta,\ \dot{x},\ \dot{\theta}]^\top$ and control $\mathbf{u} = [F]$. An underactuated nonlinear swing-up classic with input constraints:
 
-<p align="center"><img width="1200" height="462" alt="Cart-pole swing up" src="docs/media/cartpole.gif"></p>
+<p align="center"><img width="550" height="558" alt="Cart-pole swing up" src="docs/media/cartpole.gif"></p>
 
 ### Planar quadrotor
 
 States $\mathbf{x} = [x,\ y,\ \theta,\ \dot{x},\ \dot{y},\ \dot{\theta}]^\top$ and controls
 $\mathbf{u} = [F_1,\ F_2]^\top$ (rotor thrusts). An underactuated thrust-constrained free-flyer, warm-started with gravity-cancelling hover thrust:
 
-<p align="center"><img width="1200" height="517" alt="Planar quadrotor flight" src="docs/media/quadrotor.gif"></p>
+<p align="center"><img width="550" height="714" alt="Planar quadrotor flight" src="docs/media/quadrotor.gif"></p>
 
 ### 2-link robotic arm
 
@@ -55,7 +55,7 @@ $$\ell_{\mathrm{ee}}(\mathbf{x}) = \frac{w}{2}\ \left\lVert \mathrm{fk}(\mathbf{
 
 whose exact Hessian can be indefinite, thus exercising the solver's regularization.
 
-<p align="center"><img width="450" height="450" alt="2-link robotic arm reaching" src="docs/media/robotic_arm.gif"></p>
+<p align="center"><img width="500" height="500" alt="2-link robotic arm reaching" src="docs/media/robotic_arm.gif"></p>
 
 ## 🚀 Quick start
 
