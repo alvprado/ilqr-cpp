@@ -87,7 +87,8 @@ int main() {
 
     // Solve from a cold start (zero initial controls) with control bounds (u_min and u_max are the control limits)
     ilqr::ILQRSolver solver{dyn, cost, ilqr::SolverConfig<double>{}};
-    const auto request = ilqr::SolveRequest<Dims>::cold_start(initial_state, /*horizon=*/150).with_control_bounds(u_min, u_max);
+    const auto request = ilqr::SolveRequest<Dims>::cold_start(initial_state, /*horizon=*/150)
+                         .with_control_bounds(u_min, u_max);
     const auto result = solver.solve(request);
 
     // result.trajectory     — optimal states and controls
