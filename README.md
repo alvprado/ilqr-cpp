@@ -34,16 +34,16 @@ python examples/<name>/viz/animate_<name>.py
 
 ### Cart-pole swing-up
 
-States $\mathbf{x} = [x,\ \theta,\ \dot{x},\ \dot{\theta}]^\top$ and control $\mathbf{u} = [F]$. An underactuated nonlinear swing-up classic:
+States $\mathbf{x} = [x,\ \theta,\ \dot{x},\ \dot{\theta}]^\top$ and control $\mathbf{u} = [F]$. An underactuated nonlinear swing-up classic with input constraints:
 
-<p align="center"><img width="600" height="300" alt="Cart-pole swing up" src="docs/media/cartpole.gif"></p>
+<p align="center"><img width="1200" height="462" alt="Cart-pole swing up" src="docs/media/cartpole.gif"></p>
 
 ### Planar quadrotor
 
 States $\mathbf{x} = [x,\ y,\ \theta,\ \dot{x},\ \dot{y},\ \dot{\theta}]^\top$ and controls
-$\mathbf{u} = [F_1,\ F_2]^\top$ (rotor thrusts). An underactuated free-flyer, warm-started with gravity-cancelling hover thrust:
+$\mathbf{u} = [F_1,\ F_2]^\top$ (rotor thrusts). An underactuated free-flyer, warm-started with gravity-cancelling hover thrust, with thrust constraints:
 
-<p align="center"><img width="450" height="450" alt="Planar quadrotor flight" src="docs/media/quadrotor.gif"></p>
+<p align="center"><img width="1200" height="517" alt="Planar quadrotor flight" src="docs/media/quadrotor.gif"></p>
 
 ### 2-link robotic arm
 
