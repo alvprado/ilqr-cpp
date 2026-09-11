@@ -85,7 +85,8 @@ int main() {
     ilqr::FinalCost<Dims> terminal_cost(Qf, goal_state);
     ilqr::CompositeCostFunction cost(running_cost, control_cost, terminal_cost);
 
-    // Solve from a cold start (zero initial controls) with control bounds (u_min and u_max are the control limits)
+    // Solve from a cold start (zero initial controls) with control bounds
+    // (u_min and u_max are the control limits)
     ilqr::ILQRSolver solver{dyn, cost, ilqr::SolverConfig<double>{}};
     const auto request = ilqr::SolveRequest<Dims>::cold_start(initial_state, /*horizon=*/150)
                          .with_control_bounds(u_min, u_max);
