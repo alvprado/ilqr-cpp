@@ -168,7 +168,7 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::rollout_trajectory(
     for (int k = 0; k < horizon_length; ++k)
     {
         trajectory.control(k) = controls.at(k);
-        trajectory.state(k + 1) = dynamics_.step(trajectory.state(k), trajectory.control(k));
+        trajectory.state(k + 1) = dynamics_.step(trajectory.state(k), trajectory.control(k), k);
     }
 
     return trajectory;
@@ -219,7 +219,7 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::backward_pass(
         auto const& u = trajectory.control(k);
 
         // Get linear dynamics
-        auto const linear_dynamics = dynamics_.linearize(x, u);
+        auto const linear_dynamics = dynamics_.linearize(x, u, k);
         auto const& A = linear_dynamics.A;
         auto const& B = linear_dynamics.B;
 
@@ -356,7 +356,7 @@ auto ILQRSolver<Dynamics_T, CostFunction_T>::forward_pass(
         updated_trajectory.control(k) = std::move(updated_control);
 
         updated_trajectory.state(k + 1) =
-            dynamics_.step(updated_trajectory.state(k), updated_trajectory.control(k));
+            dynamics_.step(updated_trajectory.state(k), updated_trajectory.control(k), k);
     }
 
     return updated_trajectory;

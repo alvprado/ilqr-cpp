@@ -9,8 +9,8 @@
 namespace ilqr
 {
 
-/// @brief First-order Taylor expansion of the system dynamics given by
-/// f_d(x̄+δx, ū+δu) ≈ f(x̄,ū) + A·δx + B·δu
+/// @brief First-order Taylor expansion of the system dynamics at timestep k given by
+/// f_d(x̄+δx, ū+δu, k) ≈ f_d(x̄, ū, k) + A·δx + B·δu
 /// @tparam Dims_T Dimensions of dynamic system
 template <typename Dims_T>
 struct DynamicsTaylorExpansion
@@ -22,19 +22,21 @@ struct DynamicsTaylorExpansion
 };
 
 /// @brief Dynamics contract requires to publish its dimensions and
-/// - A step(x, u) -> x computing the next state from the discrete system dynamics via x_k+1 =
-/// f_d(x_k, u_k)
-/// - A linearize(x, u) -> DynamicsTaylorExpansion returning the first-order taylor expansion of the
-/// discrete dynamics f_d(x_k, u_k)
+/// - A step(x, u, k) -> x computing the next state from the discrete system dynamics via x_k+1 =
+/// f_d(x_k, u_k, k)
+/// - A linearize(x, u, k) -> DynamicsTaylorExpansion returning the first-order taylor expansion
+/// of the discrete dynamics f_d(x_k, u_k, k)
+/// @details The timestep index k lets a model whose dynamics vary along the horizon look up its
+/// per-step parameters; a time-invariant model accepts and ignores it.
 template <typename Dynamics_T>
 concept Dynamics = requires { typename Dynamics_T::Dims; } &&
                    requires(const Dynamics_T dyn, const typename Dynamics_T::Dims::StateVec& x,
-                            const typename Dynamics_T::Dims::ControlVec& u) {
+                            const typename Dynamics_T::Dims::ControlVec& u, int k) {
                        {
-                           dyn.step(x, u)
+                           dyn.step(x, u, k)
                        } -> std::convertible_to<typename Dynamics_T::Dims::StateVec>;
                        {
-                           dyn.linearize(x, u)
+                           dyn.linearize(x, u, k)
                        } -> std::convertible_to<DynamicsTaylorExpansion<typename Dynamics_T::Dims>>;
                    };
 

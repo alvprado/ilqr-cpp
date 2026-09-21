@@ -61,7 +61,7 @@ TEST(FiniteDifference, MatchesAnalyticEulerJacobiansOnLinearModel)
     Dims::ControlVec u;
     u << 0.5;
 
-    const auto expansion = dyn.linearize(x, u);
+    const auto expansion = dyn.linearize(x, u, 0);
 
     // Euler on a linear model: A_d = I + dt Ac,  B_d = dt Bc.
     const Dims::StateMat A_expected = Dims::StateMat::Identity() + dt * Ac;

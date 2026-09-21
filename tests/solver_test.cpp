@@ -38,8 +38,8 @@ struct LinearDynamics
     StateMat A;
     StateControlMat B;
 
-    StateVec step(const StateVec& x, const ControlVec& u) const { return A * x + B * u; }
-    ilqr::DynamicsTaylorExpansion<Dims> linearize(const StateVec&, const ControlVec&) const
+    StateVec step(const StateVec& x, const ControlVec& u, int) const { return A * x + B * u; }
+    ilqr::DynamicsTaylorExpansion<Dims> linearize(const StateVec&, const ControlVec&, int) const
     {
         return {A, B};
     }

@@ -20,8 +20,8 @@ namespace ilqr
 /// gradient or the relative cost reduction falls below tolerance, the iteration limit is hit, or
 /// the problem proves ill-conditioned. Regularization is adapted across iterations to keep the
 /// control Hessian positive-definite.
-/// @tparam Dynamics_T A model satisfying the Dynamics concept (exposes Dims, step(x, u) and
-///         linearize(x, u)).
+/// @tparam Dynamics_T A model satisfying the Dynamics concept (exposes Dims, step(x, u, k) and
+///         linearize(x, u, k)).
 /// @tparam CostFunction_T A cost satisfying the CostFunction concept (exposes Dims, evaluate,
 ///         quadratize, evaluate_final and quadratize_final). Must share Dims with Dynamics_T.
 template <Dynamics Dynamics_T, CostFunction CostFunction_T>

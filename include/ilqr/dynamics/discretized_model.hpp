@@ -50,15 +50,25 @@ public:
     }
 
     /// @brief Discrete dynamics x_{k+1} = f_d(x_k, u_k), obtained by integrating the model.
-    [[nodiscard]] StateVec step(const StateVec& x, const ControlVec& u) const
+    /// @details The trailing timestep index required by the Dynamics concept is unused: the
+    /// wrapped continuous model is time-invariant, so every step integrates the same f.
+    /// @param x The state at the start of the step.
+    /// @param u The control held constant over the step.
+    /// @returns The state advanced by one timestep.
+    [[nodiscard]] StateVec step(const StateVec& x, const ControlVec& u, int) const
     {
         return integrate_(model_, x, u, dt_);
     }
 
     /// @brief Jacobians A = ∂f_d/∂x, B = ∂f_d/∂u of the discrete step, via the differentiation
     ///        policy.
-    [[nodiscard]] DynamicsTaylorExpansion<Dims> linearize(const StateVec& x,
-                                                          const ControlVec& u) const
+    /// @details The trailing timestep index required by the Dynamics concept is unused: the
+    /// wrapped continuous model is time-invariant, so the Jacobians depend only on (x, u).
+    /// @param x The state to linearize about.
+    /// @param u The control to linearize about.
+    /// @returns The first-order Taylor expansion {A, B} of the discrete step at (x, u).
+    [[nodiscard]] DynamicsTaylorExpansion<Dims> linearize(const StateVec& x, const ControlVec& u,
+                                                          int) const
     {
         auto discrete_step = [this](const auto& x_k, const auto& u_k)
         { return integrate_(model_, x_k, u_k, dt_); };

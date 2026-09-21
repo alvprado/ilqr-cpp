@@ -47,8 +47,8 @@ TEST(AutoDiff, MatchesFiniteDifferenceJacobians)
     Dims::ControlVec u;
     u << 0.3;
 
-    const auto fd = dyn_fd.linearize(x, u);
-    const auto ad = dyn_ad.linearize(x, u);
+    const auto fd = dyn_fd.linearize(x, u, 0);
+    const auto ad = dyn_ad.linearize(x, u, 0);
 
     EXPECT_TRUE(ad.A.isApprox(fd.A, 1e-6)) << "A_ad=\n" << ad.A << "\nA_fd=\n" << fd.A;
     EXPECT_TRUE(ad.B.isApprox(fd.B, 1e-6)) << "B_ad=\n" << ad.B << "\nB_fd=\n" << fd.B;
